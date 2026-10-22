@@ -271,6 +271,79 @@ legend{padding:0}
 .score strong{display:block;font-size:15px;color:var(--uc-dark)}
 .score span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:800}
 .more-row{text-align:center;margin-top:12px}
+.exclusion-wrap{
+  display:grid;
+  gap:14px;
+}
+.exclusion-preset{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  padding:15px;
+  border:1px solid #B7DBF7;
+  background:#F0F8FF;
+  border-radius:14px;
+}
+.exclusion-preset strong{
+  display:block;
+  color:var(--uc-dark);
+  font-size:13px;
+}
+.exclusion-preset p{
+  margin:3px 0 0;
+  color:var(--muted);
+  font-size:11px;
+}
+.exclude-list{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.exclude-card{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:13px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:white;
+  transition:.15s ease;
+}
+.exclude-card:hover{border-color:#B5C4D3}
+.exclude-card.active{
+  border-color:#E8A59F;
+  background:#FFF8F7;
+}
+.exclude-card input{
+  width:18px;height:18px;
+  margin:2px 0 0;
+  accent-color:var(--danger);
+  flex:0 0 auto;
+}
+.exclude-card strong{
+  display:block;
+  color:var(--uc-dark);
+  font-size:12px;
+}
+.exclude-card span{
+  display:block;
+  margin-top:3px;
+  color:var(--muted);
+  font-size:10px;
+}
+.exclusion-rule{
+  display:flex;
+  gap:9px;
+  align-items:flex-start;
+  padding:11px 12px;
+  border-radius:11px;
+  background:#FFF6E5;
+  color:#7A4B00;
+  font-size:11px;
+  font-weight:700;
+}
+
 .summary{
   position:sticky;top:18px;overflow:hidden;
 }
@@ -371,6 +444,8 @@ legend{padding:0}
   .chips{gap:6px}
   .chip span{padding:8px 10px;font-size:11px}
   .base{padding:12px}
+  .exclude-list{grid-template-columns:1fr}
+  .exclusion-preset{align-items:flex-start;flex-direction:column}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition:none!important}
@@ -506,6 +581,40 @@ legend{padding:0}
         <button class="btn btn-secondary" type="button" id="toggleAllBtn">Ver todas las bases</button>
       </div>
     </section>
+
+    <section class="section" aria-labelledby="exclude-title">
+      <div class="section-head">
+        <div class="section-title">
+          <div>
+            <h2 id="exclude-title">Excluir contactos de la base final</h2>
+            <p>Las exclusiones se aplican por correo después de combinar y deduplicar las bases seleccionadas.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="exclusion-wrap">
+        <div class="exclusion-preset">
+          <div>
+            <strong>¿La difusión es solo para contactos externos?</strong>
+            <p>Usa el preset para excluir automáticamente los principales listados internos.</p>
+          </div>
+          <div class="inline-actions" style="margin-top:0">
+            <button class="btn btn-primary" type="button" id="externalOnlyBtn">Solo externos</button>
+            <button class="btn btn-secondary" type="button" id="clearExclusionsBtn">Quitar exclusiones</button>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend class="fieldset-title">Listas que se restarán</legend>
+          <div class="exclude-list" id="excludeList"></div>
+        </fieldset>
+
+        <div class="exclusion-rule">
+          <span aria-hidden="true">−</span>
+          <span>Si un correo aparece en una base incluida y también en una lista de exclusión, <strong>la exclusión siempre prevalece</strong>.</span>
+        </div>
+      </div>
+    </section>
   </form>
 
   <aside class="card summary" aria-labelledby="summaryTitle">
@@ -528,8 +637,12 @@ legend{padding:0}
           <strong id="duplicatesKpi">0</strong>
         </div>
         <div class="kpi">
-          <span>Contactos únicos</span>
+          <span>Únicos antes de excluir</span>
           <strong id="uniqueKpi">0</strong>
+        </div>
+        <div class="kpi">
+          <span>Listas de exclusión</span>
+          <strong id="excludedListsKpi">0</strong>
         </div>
       </div>
 
@@ -551,11 +664,11 @@ legend{padding:0}
 
       <div class="quality" id="qualityBox">
         <span aria-hidden="true">✓</span>
-        <span>El archivo final eliminará duplicados por correo y conservará Nombre, Apellido, Correo, Institución y Cargo.</span>
+        <span>El archivo final deduplica por correo, aplica las exclusiones seleccionadas y conserva Nombre, Apellido, Correo, Institución y Cargo.</span>
       </div>
 
       <button class="btn generate" id="generateBtn" type="button">Generar base final</button>
-      <div class="disclaimer">En este test se usan contactos de muestra integrados. La conexión directa con Drive se agrega en la siguiente versión.</div>
+      <div class="disclaimer">En este test se usan contactos de muestra integrados. La lógica de inclusión, deduplicación y exclusión funciona; la conexión directa con Drive se agrega en la siguiente versión.</div>
     </div>
   </aside>
 </main>
@@ -575,13 +688,17 @@ legend{padding:0}
   };
 
   const catalog = [
-    {id:"admin-prof",name:"Administrativos y Profesionales",category:"Públicos · Internos",count:67,tags:["Profesionales de la educación","Interno"],sample:[
+    {id:"admin-prof",name:"Administrativos y Profesionales",category:"Públicos · Internos",count:67,tags:["Profesionales de la educación","Interno"],defaultExternalExclusion:true,sample:[
       ["María","Pérez","maria.perez@ejemplo.cl","Facultad de Educación","Profesional"],
       ["Tomás","Rojas","tomas.rojas@ejemplo.cl","Facultad de Educación","Coordinador"]
     ]},
-    {id:"academicos",name:"Académicos PE / PO / PAI",category:"Públicos · Internos",count:94,tags:["Académicos","Interno","Investigación"],sample:[
+    {id:"academicos",name:"Académicos PA / PE / PO / PAI",category:"Públicos · Internos",count:94,tags:["Académicos","Interno","Investigación"],defaultExternalExclusion:true,sample:[
       ["Andrea","Silva","andrea.silva@ejemplo.cl","Universidad","Académica"],
       ["Luis","Vega","luis.vega@ejemplo.cl","Universidad","Académico"]
+    ]},
+    {id:"centros",name:"Centros de Investigación",category:"Públicos · Internos",count:145,tags:["Académicos","Profesionales de la educación","Interno","Investigación"],defaultExternalExclusion:true,sample:[
+      ["Andrea","Silva","andrea.silva@ejemplo.cl","Centro de Investigación Educacional","Investigadora"],
+      ["Martín","Salazar","martin.salazar@ejemplo.cl","Centro de Estudios Educativos","Profesional"]
     ]},
     {id:"egresados",name:"Egresados",category:"Públicos",count:620,tags:["Egresados","Interno","Externo"],sample:[
       ["Paula","Muñoz","paula.munoz@ejemplo.cl","",""],
@@ -660,6 +777,7 @@ legend{padding:0}
 
   const state = {
     selectedBaseIds:new Set(),
+    excludedBaseIds:new Set(),
     showAll:false,
     filenameEdited:false
   };
@@ -852,6 +970,56 @@ legend{padding:0}
   function formatNumber(n){return new Intl.NumberFormat("es-CL").format(Math.round(n||0))}
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
 
+  function exclusionCandidates(){
+    const defaults=catalog.filter(b=>b.defaultExternalExclusion);
+    const others=catalog.filter(b=>!b.defaultExternalExclusion);
+    return [...defaults,...others];
+  }
+
+  function renderExclusions(){
+    const container=$("excludeList");
+    container.innerHTML="";
+    exclusionCandidates().forEach(base=>{
+      const label=document.createElement("label");
+      label.className="exclude-card"+(state.excludedBaseIds.has(base.id)?" active":"");
+
+      const cb=document.createElement("input");
+      cb.type="checkbox";
+      cb.checked=state.excludedBaseIds.has(base.id);
+      cb.setAttribute("aria-label",`Excluir contactos de ${base.name}`);
+      cb.addEventListener("change",()=>{
+        cb.checked?state.excludedBaseIds.add(base.id):state.excludedBaseIds.delete(base.id);
+        renderExclusions();
+        updateSummary();
+      });
+
+      const copy=document.createElement("div");
+      const note=base.defaultExternalExclusion
+        ?"Recomendada para difusiones solo externas"
+        :`${base.category} · ${formatNumber(base.count)} contactos`;
+      copy.innerHTML=`<strong>${escapeHtml(base.name)}</strong><span>${escapeHtml(note)}</span>`;
+
+      label.append(cb,copy);
+      container.append(label);
+    });
+  }
+
+  function applyExternalOnly(){
+    state.excludedBaseIds.clear();
+    catalog.filter(b=>b.defaultExternalExclusion).forEach(b=>state.excludedBaseIds.add(b.id));
+    renderExclusions();
+    updateSummary();
+    toast("Se excluirán Académicos PA/PE/PO/PAI, Administrativos y Profesionales y Centros de Investigación.");
+    announce("Preset solo externos aplicado");
+  }
+
+  function clearExclusions(){
+    state.excludedBaseIds.clear();
+    renderExclusions();
+    updateSummary();
+    toast("Exclusiones eliminadas.");
+  }
+
   function estimatedMetrics(){
     const bases=catalog.filter(b=>state.selectedBaseIds.has(b.id));
     const total=bases.reduce((s,b)=>s+b.count,0);
@@ -884,6 +1052,7 @@ legend{padding:0}
     $("contactsKpi").textContent=formatNumber(m.total);
     $("duplicatesKpi").textContent=formatNumber(m.dups);
     $("uniqueKpi").textContent=formatNumber(m.unique);
+    $("excludedListsKpi").textContent=state.excludedBaseIds.size;
     $("sumType").textContent=listText(checked("type"));
     $("sumAudience").textContent=listText(checked("audience"));
     $("sumThemes").textContent=listText(checked("theme"));
@@ -914,6 +1083,7 @@ legend{padding:0}
     catalog.filter(b=>state.selectedBaseIds.has(b.id)).forEach(b=>{
       b.sample.forEach(r=>rows.push({Nombre:r[0],Apellido:r[1],Correo:r[2].toLowerCase(),Institución:r[3],Cargo:r[4],Origen:b.name}));
     });
+
     const map=new Map();
     rows.forEach(r=>{
       const key=r.Correo;
@@ -924,7 +1094,18 @@ legend{padding:0}
         old.Origen=[...new Set(`${old.Origen} | ${r.Origen}`.split(" | "))].join(" | ");
       }
     });
-    return [...map.values()].sort((a,b)=>a.Apellido.localeCompare(b.Apellido,"es"));
+
+    const exclusionEmails=new Set();
+    catalog.filter(b=>state.excludedBaseIds.has(b.id)).forEach(b=>{
+      b.sample.forEach(r=>exclusionEmails.add(String(r[2]||"").toLowerCase()));
+    });
+
+    const before=[...map.values()];
+    const after=before.filter(r=>!exclusionEmails.has(r.Correo));
+    return {
+      rows:after.sort((a,b)=>a.Apellido.localeCompare(b.Apellido,"es")),
+      excludedCount:before.length-after.length
+    };
   }
 
   // Minimal ZIP/XLSX writer (store mode, no external libraries)
@@ -951,7 +1132,7 @@ legend{padding:0}
   function xmlEscape(s){return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
   function colName(n){let s="";while(n){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26)}return s}
   function worksheetXml(rows){
-    const headers=["Nombre","Apellido","Correo","Institución","Cargo","Origen"];
+    const headers=["Nombre","Apellido","Correo","Institución","Cargo"];
     const data=[headers,...rows.map(r=>headers.map(h=>r[h]||""))];
     const rowXml=data.map((row,ri)=>{
       const cells=row.map((v,ci)=>{
@@ -963,11 +1144,11 @@ legend{padding:0}
     }).join("");
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<dimension ref="A1:F${data.length}"/>
+<dimension ref="A1:E${data.length}"/>
 <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
-<cols><col min="1" max="1" width="22" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="3" width="34" customWidth="1"/><col min="4" max="4" width="30" customWidth="1"/><col min="5" max="5" width="26" customWidth="1"/><col min="6" max="6" width="38" customWidth="1"/></cols>
+<cols><col min="1" max="1" width="22" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="3" width="34" customWidth="1"/><col min="4" max="4" width="30" customWidth="1"/><col min="5" max="5" width="26" customWidth="1"/></cols>
 <sheetData>${rowXml}</sheetData>
-<autoFilter ref="A1:F${data.length}"/>
+<autoFilter ref="A1:E${data.length}"/>
 </worksheet>`;
   }
   function makeXlsx(rows){
@@ -992,9 +1173,10 @@ legend{padding:0}
       toast("Selecciona al menos una base.");
       return;
     }
-    const rows=collectDemoContacts();
+    const result=collectDemoContacts();
+    const rows=result.rows;
     if(!rows.length){
-      toast("Las bases seleccionadas no tienen datos de muestra.");
+      toast("Después de aplicar las exclusiones no quedaron contactos en los datos de muestra.");
       return;
     }
     const blob=makeXlsx(rows);
@@ -1004,8 +1186,8 @@ legend{padding:0}
     a.download=filename;
     document.body.append(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-    toast(`Base generada: ${rows.length} contactos de muestra únicos.`);
-    announce(`Archivo ${filename} generado con ${rows.length} contactos de muestra únicos.`);
+    toast(`Base generada: ${rows.length} contactos únicos · ${result.excludedCount} excluidos.`);
+    announce(`Archivo ${filename} generado con ${rows.length} contactos únicos y ${result.excludedCount} contactos excluidos.`);
   }
 
   let toastTimer;
@@ -1020,6 +1202,8 @@ legend{padding:0}
   $("toggleAllBtn").addEventListener("click",()=>{state.showAll=!state.showAll;renderBases()});
   $("baseSearch").addEventListener("input",renderBases);
   $("generateBtn").addEventListener("click",generate);
+  $("externalOnlyBtn").addEventListener("click",applyExternalOnly);
+  $("clearExclusionsBtn").addEventListener("click",clearExclusions);
   $("resetFilenameBtn").addEventListener("click",()=>{state.filenameEdited=false;updateFilename();toast("Nombre automático restaurado.")});
   $("outputFilename").addEventListener("input",()=>state.filenameEdited=true);
   $("eventName").addEventListener("input",()=>{updateFilename();$("fieldName").classList.remove("invalid")});
@@ -1029,6 +1213,7 @@ legend{padding:0}
     updateAll();
   }));
 
+  renderExclusions();
   updateAll();
 })();
 </script>
